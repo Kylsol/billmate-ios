@@ -6,12 +6,17 @@
 //
 
 import SwiftUI
+import GoogleSignIn
 
 @main
 struct Bill_MateApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .onOpenURL { url in
+                    // This is required so Google Sign-In can resume the auth flow
+                    GIDSignIn.sharedInstance.handle(url)
+                }
         }
     }
 }

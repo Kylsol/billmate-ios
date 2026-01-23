@@ -6,53 +6,61 @@
 //
 
 import SwiftUI
-import GoogleSignIn
 import GoogleSignInSwift
 
 struct ContentView: View {
-    @State private var statusText = "Not signed in"
+    @StateObject private var auth = GoogleAuthManager()
 
     var body: some View {
         VStack(spacing: 16) {
             Text("Bill Mate")
                 .font(.largeTitle)
 
-            Text(statusText)
-                .font(.subheadline)
+            // Show email if signed in
+            if let email = auth.email {
+                Text("Signed in as: \(email)")
+                    .font(.subheadline)
+            }
+
+            // ALWAYS show statusText so you can see spreadsheet messages
+            Text(auth.statusText)
+                .font(.footnote)
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.secondary)
 
             GoogleSignInButton {
-                signIn()
+                auth.signIn()
             }
             .frame(height: 48)
             .padding(.horizontal)
 
+            Button("Create / Load Spreadsheet") {
+                auth.statusText = "⏳ Creating/loading spreadsheet..."
+
+                GoogleSheetsService.shared.createSpreadsheetIfNeeded { result in
+                    switch result {
+                    case .success(let id):
+                        GoogleSheetsService.shared.storeSpreadsheetId(id)
+                        auth.statusText = "✅ Spreadsheet ready: \(id)"
+
+                        // Optional: print in console so you can confirm it fired
+                        print("✅ Spreadsheet ID:", id)
+
+                    case .failure(let error):
+                        auth.statusText = "❌ Spreadsheet error: \(error.localizedDescription)"
+                        print("❌ Spreadsheet error:", error)
+                    }
+                }
+            }
+            .disabled(auth.email == nil)
+            .opacity(auth.email == nil ? 0.5 : 1.0)
+
             Button("Sign out") {
-                GIDSignIn.sharedInstance.signOut()
-                statusText = "Signed out"
+                auth.signOut()
             }
             .padding(.top, 8)
         }
         .padding()
     }
-
-    private func signIn() {
-        guard let rootVC = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .flatMap({ $0.windows })
-            .first(where: { $0.isKeyWindow })?
-            .rootViewController else {
-            statusText = "Could not find root view controller"
-            return
-        }
-
-        GIDSignIn.sharedInstance.signIn(withPresenting: rootVC) { result, error in
-            if let error = error {
-                statusText = "Sign-in error: \(error.localizedDescription)"
-                return
-            }
-
-            let email = result?.user.profile?.email ?? "Signed in (no email)"
-            statusText = "Signed in as: \(email)"
-        }
-    }
 }
+
