@@ -10,13 +10,17 @@ import GoogleSignIn
 
 @main
 struct Bill_MateApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    @StateObject private var auth = GoogleAuthManager()
+
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
+                .environmentObject(auth)
                 .onOpenURL { url in
-                    // This is required so Google Sign-In can resume the auth flow
                     GIDSignIn.sharedInstance.handle(url)
                 }
         }
     }
 }
+
